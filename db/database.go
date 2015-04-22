@@ -103,3 +103,14 @@ func (db *Database) Sync() error {
 func (db Database) Close() error {
 	return db.file.Close()
 }
+
+// Find a show by it's name
+func (db Database) FindShow(name string) (*Show, bool) {
+	for _, show := range db.Shows {
+		if show.Name == name {
+			return show, true
+		}
+	}
+
+	return nil, false
+}
