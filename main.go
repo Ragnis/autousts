@@ -1,19 +1,16 @@
 package main
 
 import (
-	"aragnis.com/autousts/search"
+	"aragnis.com/autousts/db"
 	"fmt"
 )
 
 func main() {
-	var kickass search.Kickass
-
-	results, err := kickass.Search("shameless", search.Options{})
+	dbh, err := db.NewDatabase("testdb")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Could not open the database", err)
+		return
 	}
 
-	for _, result := range results {
-		fmt.Println(result)
-	}
+	dbh.Close()
 }
