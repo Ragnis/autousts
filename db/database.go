@@ -44,6 +44,10 @@ func (db *Database) Read() error {
 		return err
 	}
 
+	if fstat.Size() == 0 {
+		return nil
+	}
+
 	r, err := zip.NewReader(db.file, fstat.Size())
 	if err != nil {
 		return err
