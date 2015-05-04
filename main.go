@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
+	"time"
 )
 
 func displayShow(show *db.Show) {
@@ -72,6 +73,10 @@ func edit(dbh *db.Database, args []string) {
 	var flagPreferHQ = flags.Bool("prefer-hq", show.PreferHQ, "Prefer HQ")
 	var flagPointer = flags.String("pointer", show.Pointer.String(), "Set the show pointer")
 
+	var flagSeason = flags.Uint("season", 0, "Season to edit")
+	var flagSeasonEpc = flags.Uint("season-epc", 0, "Total number of episodes")
+	var flagSeasonBegin = flags.String("season-begin", "", "Beginning date of this season")
+
 	flags.Parse(args[1:len(args)])
 
 	pointer, err := db.PointerFromString(*flagPointer)
@@ -84,6 +89,33 @@ func edit(dbh *db.Database, args []string) {
 	show.SeedersMin = *flagSeedersMin
 	show.PreferHQ = *flagPreferHQ
 	show.Pointer = pointer
+
+	if *flagSeason != 0 {
+		season, ok := show.GetSeason(*flagSeason)
+		if !ok {
+			fmt.Printf("Season '%d' not found.\n", *flagSeason)
+			fmt.Println("Creating it...")
+
+			season = &db.Season{
+				Number: *flagSeason,
+			}
+			show.Seasons = append(show.Seasons, season)
+		}
+
+		if *flagSeasonEpc > 0 {
+			season.EpisodeCount = *flagSeasonEpc
+		}
+
+		if *flagSeasonBegin != "" {
+			begin, err := time.Parse("2006-01-02", *flagSeasonBegin)
+			if err != nil {
+				fmt.Println("Invalid begin date: " + err.Error())
+				return
+			}
+
+			season.Begin = begin
+		}
+	}
 
 	if err := dbh.Sync(); err != nil {
 		fmt.Println("Error saving the database", err)
