@@ -8,6 +8,26 @@ import (
 	"text/tabwriter"
 )
 
+func displayShow(show *db.Show) {
+	table := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
+	seasonTable := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
+
+	for _, row := range show.Table() {
+		table.Write([]byte(row))
+	}
+
+	for _, season := range show.Seasons {
+		seasonTable.Write([]byte(season.TableRow()))
+	}
+
+	table.Flush()
+
+	if len(show.Seasons) > 0 {
+		fmt.Println("Seasons:")
+		seasonTable.Flush()
+	}
+}
+
 func view(dbh *db.Database, args []string) {
 	if len(args) == 0 {
 		table := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
@@ -25,23 +45,7 @@ func view(dbh *db.Database, args []string) {
 			return
 		}
 
-		table := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
-		seasonTable := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
-
-		for _, row := range show.Table() {
-			table.Write([]byte(row))
-		}
-
-		for _, season := range show.Seasons {
-			seasonTable.Write([]byte(season.TableRow()))
-		}
-
-		table.Flush()
-
-		if len(show.Seasons) > 0 {
-			fmt.Println("Seasons:")
-			seasonTable.Flush()
-		}
+		displayShow(show)
 	}
 }
 
@@ -84,7 +88,8 @@ func edit(dbh *db.Database, args []string) {
 	if err := dbh.Sync(); err != nil {
 		fmt.Println("Error saving the database", err)
 	} else {
-		fmt.Println("Changes saved")
+		fmt.Println("Changes saved\n")
+		displayShow(show)
 	}
 }
 
