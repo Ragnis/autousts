@@ -11,21 +11,20 @@ import (
 
 func displayShow(show *db.Show) {
 	table := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
-	seasonTable := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
 
 	for _, row := range show.Table() {
 		table.Write([]byte(row))
 	}
 
-	for _, season := range show.Seasons {
-		seasonTable.Write([]byte(season.TableRow()))
-	}
-
 	table.Flush()
 
 	if len(show.Seasons) > 0 {
-		fmt.Println("Seasons:")
-		seasonTable.Flush()
+		fmt.Println("")
+		fmt.Println("Season\tEpisodes\tBegin")
+
+		for _, season := range show.Seasons {
+			fmt.Println(season.TableRow())
+		}
 	}
 }
 
