@@ -6,47 +6,41 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 )
 
-func displayShow(show *db.Show) {
-	table := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
-
-	for _, row := range show.Table() {
-		table.Write([]byte(row))
-	}
-
-	table.Flush()
-
-	if len(show.Seasons) > 0 {
-		fmt.Println("")
-		fmt.Println("Season\tEpisodes\tBegin")
-
-		for _, season := range show.Seasons {
-			fmt.Println(season.TableRow())
-		}
-	}
-}
-
 func view(dbh *db.Database, args []string) {
 	if len(args) == 0 {
-		table := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
-
 		for _, show := range dbh.Shows {
-			table.Write([]byte(show.TableRow()))
-		}
+			name := show.Name
+			if len(name) > 15 {
+				name = name[:15] + "..."
+			}
 
-		table.Flush()
+			fmt.Printf("%-20s %s\n", name, show.Pointer)
+		}
 	} else {
-		showName := args[0]
-		show, ok := dbh.FindShow(showName)
+		name := args[0]
+		show, ok := dbh.FindShow(name)
 		if !ok {
-			fmt.Printf("The specified show '%s' not found.\n", showName)
+			fmt.Printf("The specified show '%s' not found.\n", name)
 			return
 		}
 
-		displayShow(show)
+		fmt.Printf("Name        : %s\n", show.Name)
+		fmt.Printf("Query       : %s\n", show.Query)
+		fmt.Printf("Min seeders : %d\n", show.SeedersMin)
+		fmt.Printf("Prefer HQ   : %t\n", show.PreferHQ)
+		fmt.Printf("Pointer     : %s\n", show.Pointer)
+
+		if len(show.Seasons) > 0 {
+			fmt.Println("")
+			fmt.Println("Season  Episodes  Begin")
+
+			for _, season := range show.Seasons {
+				fmt.Printf("%-7d %-9d %s\n", season.Number, season.EpisodeCount, season.Begin)
+			}
+		}
 	}
 }
 

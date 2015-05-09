@@ -1,9 +1,5 @@
 package db
 
-import (
-	"fmt"
-)
-
 type Show struct {
 	Name       string
 	Query      string
@@ -74,18 +70,4 @@ func (s *Show) DeleteSeason(number uint) {
 	}
 
 	s.Seasons = keep
-}
-
-func (s Show) Table() []string {
-	return []string{
-		fmt.Sprintf("Name\t: %s\n", s.Name),
-		fmt.Sprintf("Query\t: %s\n", s.Query),
-		fmt.Sprintf("Min seeders\t: %d\n", s.SeedersMin),
-		fmt.Sprintf("Prefer HQ\t: %t\n", s.PreferHQ),
-		fmt.Sprintf("Pointer\t: %s\n", s.Pointer),
-	}
-}
-
-func (s Show) TableRow() string {
-	return fmt.Sprintf("%s\t%s\n", s.Name, s.Pointer)
 }
