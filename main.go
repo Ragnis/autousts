@@ -94,7 +94,7 @@ Season properties:
 	}
 
 	if number != 0 {
-		season, ok = show.GetSeason(number)
+		season, ok = show.FindSeason(number)
 		if !ok {
 			season = &db.Season{
 				Number: number,

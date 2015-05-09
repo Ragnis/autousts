@@ -9,7 +9,7 @@ type Show struct {
 	Seasons    []*Season
 }
 
-func (s Show) GetSeason(n uint) (*Season, bool) {
+func (s Show) FindSeason(n uint) (*Season, bool) {
 	for _, season := range s.Seasons {
 		if season.Number == n {
 			return season, true
@@ -34,7 +34,7 @@ func (s Show) getNextSeason(n uint) (*Season, bool) {
 func (s Show) NextPointer() (Pointer, bool) {
 	ret := Pointer{}
 
-	season, ok := s.GetSeason(s.Pointer.Season)
+	season, ok := s.FindSeason(s.Pointer.Season)
 	if !ok {
 		season, ok = s.getNextSeason(s.Pointer.Season)
 		if !ok {
