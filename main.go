@@ -2,9 +2,10 @@ package main
 
 import (
 	"aragnis.com/autousts/db"
-	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"text/tabwriter"
 	"time"
 )
@@ -49,86 +50,128 @@ func view(dbh *db.Database, args []string) {
 	}
 }
 
-func edit(dbh *db.Database, args []string) {
-	if len(args) == 0 {
-		fmt.Println("No show specified.\n")
+func set(dbh *db.Database, args []string) {
+	if len(args) != 3 {
+		fmt.Println(`Usage:
+  set SHOW PROP VALUE
+  set SHOW:SEASON PROP VALUE
+
+Show properties:
+  query       : string, search query, must contain '%s' for pointer
+  min-seeders : uint, minimum number of seeders allowed
+  prefer-hq   : boolean
+  pointer     : last downloaded episode
+
+Season properties:
+  epc   : uint, episode count
+  begin : date, begin date`)
 		return
 	}
 
-	show, ok := dbh.FindShow(args[0])
-	if !ok {
-		fmt.Printf("The specified show '%s' not found.\n", args[0])
-		fmt.Println("Creating it...")
+	split := strings.Split(args[0], ":")
+	key := args[1]
+	value := args[2]
 
+	var (
+		ok bool
+
+		name   string = split[0]
+		number uint
+
+		show   *db.Show
+		season *db.Season
+	)
+
+	if len(split) == 2 {
+		v, err := strconv.Atoi(split[1])
+		if err != nil || v <= 0 {
+			fmt.Println("Invalid season specified")
+			return
+		}
+		number = uint(v)
+	}
+
+	show, ok = dbh.FindShow(name)
+	if !ok {
 		show = &db.Show{
-			Name: args[0],
+			Name: name,
 		}
 		dbh.Shows = append(dbh.Shows, show)
 	}
 
-	flags := flag.NewFlagSet("edit", flag.ExitOnError)
-	var flagQuery = flags.String("query", show.Query, "Search query. Must contain '%s'")
-	var flagSeedersMin = flags.Uint("min-seeders", show.SeedersMin, "Minimum amount of seeders")
-	var flagPreferHQ = flags.Bool("prefer-hq", show.PreferHQ, "Prefer HQ")
-	var flagPointer = flags.String("pointer", show.Pointer.String(), "Set the show pointer")
-
-	var flagSeason = flags.Uint("season", 0, "Season to edit")
-	var flagSeasonEpc = flags.Uint("season-epc", 0, "Total number of episodes")
-	var flagSeasonBegin = flags.String("season-begin", "", "Beginning date of this season")
-	var flagSeasonRm = flags.Bool("season-rm", false, "Delete the selected season")
-
-	flags.Parse(args[1:len(args)])
-
-	pointer, err := db.PointerFromString(*flagPointer)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	show.Query = *flagQuery
-	show.SeedersMin = *flagSeedersMin
-	show.PreferHQ = *flagPreferHQ
-	show.Pointer = pointer
-
-	if *flagSeasonRm {
-		_, ok := show.GetSeason(*flagSeason)
-		if ok {
-			show.DeleteSeason(*flagSeason)
-		} else {
-			fmt.Println("Cannot delete season: does not exist")
-		}
-	} else if *flagSeason != 0 {
-		season, ok := show.GetSeason(*flagSeason)
+	if number != 0 {
+		season, ok = show.GetSeason(number)
 		if !ok {
-			fmt.Printf("Season '%d' not found.\n", *flagSeason)
-			fmt.Println("Creating it...")
-
 			season = &db.Season{
-				Number: *flagSeason,
+				Number: number,
 			}
 			show.Seasons = append(show.Seasons, season)
 		}
+	}
 
-		if *flagSeasonEpc > 0 {
-			season.EpisodeCount = *flagSeasonEpc
-		}
+	if season != nil {
+		switch key {
+		case "epc":
+			epc, err := strconv.Atoi(value)
+			if err != nil || epc < 0 {
+				fmt.Println("Invalid value")
+				break
+			}
+			season.EpisodeCount = uint(epc)
 
-		if *flagSeasonBegin != "" {
-			begin, err := time.Parse("2006-01-02", *flagSeasonBegin)
+		case "begin":
+			begin, err := time.Parse("2006-01-02", value)
 			if err != nil {
-				fmt.Println("Invalid begin date: " + err.Error())
-				return
+				fmt.Println("Invalid value: " + err.Error())
+				break
+			}
+			season.Begin = begin
+
+		default:
+			fmt.Println("Invalid key")
+		}
+	} else {
+		switch key {
+		case "query":
+			if strings.Count(value, "%s") != 1 {
+				fmt.Println("The value must contain exactly one '%s'")
+				break
+			}
+			show.Query = value
+
+		case "seeders-min":
+			v, err := strconv.Atoi(value)
+			if err != nil || v < 0 {
+				fmt.Println("Invalid value")
+				break
+			}
+			show.SeedersMin = uint(v)
+
+		case "prefer-hq":
+			switch value {
+			case "true":
+				show.PreferHQ = true
+			case "false":
+				show.PreferHQ = false
+			default:
+				fmt.Println("Invalid value. Allowed values are: true, false")
 			}
 
-			season.Begin = begin
+		case "pointer":
+			pointer, err := db.PointerFromString(value)
+			if err != nil {
+				fmt.Println("Invalid value")
+				break
+			}
+			show.Pointer = pointer
+
+		default:
+			fmt.Println("Invalid key")
 		}
 	}
 
 	if err := dbh.Sync(); err != nil {
-		fmt.Println("Error saving the database", err)
-	} else {
-		fmt.Println("Changes saved\n")
-		displayShow(show)
+		fmt.Println("Error syncing database: " + err.Error())
 	}
 }
 
@@ -140,7 +183,7 @@ func main() {
 	}
 
 	if len(os.Args) <= 1 {
-		fmt.Println("No verb specified: {sync, view, edit}")
+		fmt.Println("No verb specified: {sync, view, set}")
 		return
 	}
 
@@ -151,8 +194,8 @@ func main() {
 		fmt.Println("Not implemented")
 	case "view":
 		view(dbh, os.Args[2:])
-	case "edit":
-		edit(dbh, os.Args[2:])
+	case "set":
+		set(dbh, os.Args[2:])
 	}
 
 	dbh.Close()
