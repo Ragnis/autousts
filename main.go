@@ -60,7 +60,7 @@ func edit(dbh *db.Database, args []string) {
 		fmt.Printf("The specified show '%s' not found.\n", args[0])
 		fmt.Println("Creating it...")
 
-		show := &db.Show{
+		show = &db.Show{
 			Name: args[0],
 		}
 		dbh.Shows = append(dbh.Shows, show)
