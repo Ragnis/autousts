@@ -188,14 +188,15 @@ func main() {
 	}
 
 	verb := os.Args[1]
+	verbArgs := os.Args[2:]
 
 	switch verb {
 	case "sync":
 		fmt.Println("Not implemented")
 	case "view":
-		view(dbh, os.Args[2:])
+		view(dbh, verbArgs)
 	case "set":
-		set(dbh, os.Args[2:])
+		set(dbh, verbArgs)
 	}
 
 	dbh.Close()
