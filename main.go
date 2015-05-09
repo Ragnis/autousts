@@ -182,13 +182,15 @@ func main() {
 		return
 	}
 
-	if len(os.Args) <= 1 {
-		fmt.Println("No verb specified: {sync, view, set}")
-		return
-	}
+	var (
+		verb     string
+		verbArgs []string
+	)
 
-	verb := os.Args[1]
-	verbArgs := os.Args[2:]
+	if len(os.Args) >= 2 {
+		verb = os.Args[1]
+		verbArgs = os.Args[2:]
+	}
 
 	switch verb {
 	case "sync":
@@ -197,6 +199,8 @@ func main() {
 		view(dbh, verbArgs)
 	case "set":
 		set(dbh, verbArgs)
+	default:
+		fmt.Println("No verb specified: {sync, view, set}")
 	}
 
 	dbh.Close()
