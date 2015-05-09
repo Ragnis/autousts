@@ -75,6 +75,7 @@ func edit(dbh *db.Database, args []string) {
 	var flagSeason = flags.Uint("season", 0, "Season to edit")
 	var flagSeasonEpc = flags.Uint("season-epc", 0, "Total number of episodes")
 	var flagSeasonBegin = flags.String("season-begin", "", "Beginning date of this season")
+	var flagSeasonRm = flags.Bool("season-rm", false, "Delete the selected season")
 
 	flags.Parse(args[1:len(args)])
 
@@ -89,7 +90,14 @@ func edit(dbh *db.Database, args []string) {
 	show.PreferHQ = *flagPreferHQ
 	show.Pointer = pointer
 
-	if *flagSeason != 0 {
+	if *flagSeasonRm {
+		_, ok := show.GetSeason(*flagSeason)
+		if ok {
+			show.DeleteSeason(*flagSeason)
+		} else {
+			fmt.Println("Cannot delete season: does not exist")
+		}
+	} else if *flagSeason != 0 {
 		season, ok := show.GetSeason(*flagSeason)
 		if !ok {
 			fmt.Printf("Season '%d' not found.\n", *flagSeason)

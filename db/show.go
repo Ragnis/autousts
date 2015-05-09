@@ -64,6 +64,18 @@ func (s Show) NextPointer() (Pointer, bool) {
 	return ret, true
 }
 
+func (s *Show) DeleteSeason(number uint) {
+	keep := []*Season{}
+
+	for _, season := range s.Seasons {
+		if season.Number != number {
+			keep = append(keep, season)
+		}
+	}
+
+	s.Seasons = keep
+}
+
 func (s Show) Table() []string {
 	return []string{
 		fmt.Sprintf("Name\t: %s\n", s.Name),
