@@ -9,37 +9,38 @@ import (
 	"time"
 )
 
-func view(dbh *db.Database, args []string) {
-	if len(args) == 0 {
-		for _, show := range dbh.Shows {
-			name := show.Name
-			if len(name) > 15 {
-				name = name[:15] + "..."
-			}
 
-			fmt.Printf("%-20s %s\n", name, show.Pointer)
-		}
-	} else {
-		name := args[0]
-		show, ok := dbh.FindShow(name)
-		if !ok {
-			fmt.Printf("The specified show '%s' not found.\n", name)
-			return
+
+func viewAll(dbh *db.Database) {
+	for _, show := range dbh.Shows {
+		name := show.Name
+		if len(name) > 15 {
+			name = name[:15] + "..."
 		}
 
-		fmt.Printf("Name        : %s\n", show.Name)
-		fmt.Printf("Query       : %s\n", show.Query)
-		fmt.Printf("Min seeders : %d\n", show.SeedersMin)
-		fmt.Printf("Prefer HQ   : %t\n", show.PreferHQ)
-		fmt.Printf("Pointer     : %s\n", show.Pointer)
+		fmt.Printf("%-20s %s\n", name, show.Pointer)
+	}
+}
 
-		if len(show.Seasons) > 0 {
-			fmt.Println("")
-			fmt.Println("Season  Episodes  Begin")
+func view(dbh *db.Database, name string) {
+	show, ok := dbh.FindShow(name)
+	if !ok {
+		fmt.Printf("The specified show '%s' not found.\n", name)
+		return
+	}
 
-			for _, season := range show.Seasons {
-				fmt.Printf("%-7d %-9d %s\n", season.Number, season.EpisodeCount, season.Begin)
-			}
+	fmt.Printf("Name        : %s\n", show.Name)
+	fmt.Printf("Query       : %s\n", show.Query)
+	fmt.Printf("Min seeders : %d\n", show.SeedersMin)
+	fmt.Printf("Prefer HQ   : %t\n", show.PreferHQ)
+	fmt.Printf("Pointer     : %s\n", show.Pointer)
+
+	if len(show.Seasons) > 0 {
+		fmt.Println("")
+		fmt.Println("Season  Episodes  Begin")
+
+		for _, season := range show.Seasons {
+			fmt.Printf("%-7d %-9d %s\n", season.Number, season.EpisodeCount, season.Begin)
 		}
 	}
 }
@@ -190,7 +191,11 @@ func main() {
 	case "sync":
 		fmt.Println("Not implemented")
 	case "view":
-		view(dbh, verbArgs)
+		if len(verbArgs) == 1 {
+			view(dbh, verbArgs[0])
+		} else {
+			viewAll(dbh)
+		}
 	case "set":
 		set(dbh, verbArgs)
 	default:
