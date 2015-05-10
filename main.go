@@ -31,7 +31,7 @@ func syncShow(show *db.Show, out chan<- *search.Result, fin chan<- bool) {
 		var chosen *search.Result
 
 		for _, result := range results {
-			if result.Seeders < show.SeedersMin {
+			if show.SeedersMin > 0 && result.Seeders < show.SeedersMin {
 				continue
 			}
 
@@ -260,7 +260,7 @@ Season properties:
 }
 
 func main() {
-	dbh, err := db.NewDatabase("testdb")
+	dbh, err := db.NewDatabase(fmt.Sprintf("%s/.config/goautousts.zip", os.Getenv("HOME")))
 	if err != nil {
 		fmt.Println("Could not open the database", err)
 		return
