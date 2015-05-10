@@ -2,14 +2,103 @@ package main
 
 import (
 	"aragnis.com/autousts/db"
+	"aragnis.com/autousts/search"
 	"fmt"
+	"github.com/longnguyen11288/go-transmission/transmission"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
+func syncShow(show *db.Show, out chan<- *search.Result, fin chan<- bool) {
+	var k search.Kickass
 
+	for {
+		pointer, ok := show.NextPointer()
+		if !ok {
+			break
+		}
+
+		query := fmt.Sprintf(show.Query, pointer)
+
+		results, err := k.Search(query, search.Options{})
+		if err != nil {
+			fmt.Printf("Search error: " + err.Error())
+			break
+		}
+
+		var chosen *search.Result
+
+		for _, result := range results {
+			if result.Seeders < show.SeedersMin {
+				continue
+			}
+
+			rptr, err := db.PointerFromString(result.Name)
+			if err != nil || rptr.String() != pointer.String() {
+				continue
+			}
+
+			chosen = result
+			break
+		}
+
+		if chosen == nil {
+			break
+		}
+
+		out <- chosen
+		show.Pointer = pointer
+	}
+
+	fin <- true
+}
+
+func sync(dbh *db.Database) {
+	tc := transmission.New("http://127.0.0.1:9091", "", "")
+	if _, err := tc.GetTorrents(); err != nil {
+		fmt.Println("Could not connect to Transmission RPC API: " + err.Error())
+		return
+	}
+
+	var results []*search.Result
+
+	waiting := 0
+	fin := make(chan bool)
+	rec := make(chan *search.Result)
+
+	for _, show := range dbh.Shows {
+		waiting += 1
+		go syncShow(show, rec, fin)
+	}
+
+	for waiting > 0 {
+		select {
+		case result := <-rec:
+			results = append(results, result)
+
+		case <-fin:
+			waiting -= 1
+		}
+	}
+
+	for _, result := range results {
+		fmt.Printf("Found torrent: '%s'\n", result.Name)
+
+		if _, err := tc.AddTorrentByFilename(result.MagnetURL, ""); err != nil {
+			fmt.Println("Error adding torrent: " + err.Error())
+			fmt.Println("Stopping...")
+			return
+		}
+	}
+
+	fmt.Printf("Found %d torrent(s)\n", len(results))
+
+	if err := dbh.Sync(); err != nil {
+		fmt.Println("Error syncing database: " + err.Error())
+	}
+}
 
 func viewAll(dbh *db.Database) {
 	for _, show := range dbh.Shows {
@@ -189,7 +278,7 @@ func main() {
 
 	switch verb {
 	case "sync":
-		fmt.Println("Not implemented")
+		sync(dbh)
 	case "view":
 		if len(verbArgs) == 1 {
 			view(dbh, verbArgs[0])
