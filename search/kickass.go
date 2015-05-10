@@ -32,14 +32,14 @@ func (k *Kickass) Search(query string, options Options) ([]*Result, error) {
 		}
 
 		seeders, err := strconv.Atoi(s.Find("td:nth-child(5)").Text())
-		if err != nil {
+		if err != nil || seeders < 0 {
 			return
 		}
 
 		ret = append(ret, &Result{
 			Name:      s.Find(".cellMainLink").Text(),
 			MagnetURL: magnet,
-			Seeders:   seeders,
+			Seeders:   uint(seeders),
 		})
 	})
 

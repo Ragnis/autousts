@@ -6,7 +6,7 @@ type Options struct {
 type Result struct {
 	Name      string
 	MagnetURL string
-	Seeders   int
+	Seeders   uint
 	Size      uint64
 }
 
