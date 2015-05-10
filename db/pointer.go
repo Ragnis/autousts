@@ -17,7 +17,7 @@ func (p Pointer) String() string {
 }
 
 func PointerFromString(s string) (Pointer, error) {
-	re := regexp.MustCompile(`^S(\d+)E(\d+)$`)
+	re := regexp.MustCompile(`S(\d+)E(\d+)`)
 	match := re.FindStringSubmatch(s)
 	if match == nil {
 		return Pointer{}, errors.New("Invalid pointer")
