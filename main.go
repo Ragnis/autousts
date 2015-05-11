@@ -291,5 +291,7 @@ func main() {
 		fmt.Println("No verb specified: {sync, view, set}")
 	}
 
-	dbh.Close()
+	if err := dbh.Close(); err != nil {
+		fmt.Println("Error closing the database: " + err.Error())
+	}
 }
