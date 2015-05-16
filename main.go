@@ -24,7 +24,7 @@ func syncShow(show *db.Show, out chan<- *search.Result, fin chan<- bool) {
 
 		results, err := k.Search(query, search.Options{})
 		if err != nil {
-			fmt.Printf("Search error: " + err.Error())
+			fmt.Println("Search error: " + err.Error())
 			break
 		}
 
