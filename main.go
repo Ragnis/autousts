@@ -142,11 +142,17 @@ func viewAll(db *bolt.DB) {
 			}
 
 			name := show.Name
+			hasNext := ""
+
 			if len(name) > 15 {
 				name = name[:15] + "..."
 			}
 
-			fmt.Printf("%-20s %s\n", name, show.Pointer)
+			if _, ok := show.NextPointer(); ok {
+				hasNext = "+"
+			}
+
+			fmt.Printf("%-20s %s %s\n", name, show.Pointer, hasNext)
 		}
 
 		return nil
