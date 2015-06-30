@@ -1,9 +1,9 @@
 package main
 
 import (
-	"aragnis.com/autousts/db"
 	"aragnis.com/autousts/search"
 	"fmt"
+	"github.com/boltdb/bolt"
 	"github.com/longnguyen11288/go-transmission/transmission"
 	"os"
 	"strconv"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func syncShow(show *db.Show, out chan<- *search.Result, fin chan<- bool) {
+func syncShow(show *Show, out chan<- *search.Result, fin chan<- bool) {
 	var k search.Kickass
 
 	for {
@@ -35,7 +35,7 @@ func syncShow(show *db.Show, out chan<- *search.Result, fin chan<- bool) {
 				continue
 			}
 
-			rptr, err := db.PointerFromString(result.Name)
+			rptr, err := PointerFromString(result.Name)
 			if err != nil || rptr.String() != pointer.String() {
 				continue
 			}
@@ -55,20 +55,37 @@ func syncShow(show *db.Show, out chan<- *search.Result, fin chan<- bool) {
 	fin <- true
 }
 
-func sync(dbh *db.Database) {
+func sync(db *bolt.DB) {
 	tc := transmission.New("http://127.0.0.1:9091", "", "")
 	if _, err := tc.GetTorrents(); err != nil {
 		fmt.Println("Could not connect to Transmission RPC API: " + err.Error())
 		return
 	}
 
-	var results []*search.Result
+	var (
+		shows   []*Show
+		results []*search.Result
+	)
 
 	waiting := 0
 	fin := make(chan bool)
 	rec := make(chan *search.Result)
 
-	for _, show := range dbh.Shows {
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Shows"))
+		c := b.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			show, err := ShowFromBytes(v)
+			if err == nil {
+				shows = append(shows, show)
+			}
+		}
+
+		return nil
+	})
+
+	for _, show := range shows {
 		waiting += 1
 		go syncShow(show, rec, fin)
 	}
@@ -95,25 +112,60 @@ func sync(dbh *db.Database) {
 
 	fmt.Printf("Found %d torrent(s)\n", len(results))
 
-	if err := dbh.Sync(); err != nil {
-		fmt.Println("Error syncing database: " + err.Error())
-	}
-}
+	err := db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Shows"))
 
-func viewAll(dbh *db.Database) {
-	for _, show := range dbh.Shows {
-		name := show.Name
-		if len(name) > 15 {
-			name = name[:15] + "..."
+		for _, show := range shows {
+			if err := b.Put([]byte(show.Name), show.Bytes()); err != nil {
+				return err
+			}
 		}
 
-		fmt.Printf("%-20s %s\n", name, show.Pointer)
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("Error occurred while saving shows: %s", err.Error())
 	}
 }
 
-func view(dbh *db.Database, name string) {
-	show, ok := dbh.FindShow(name)
-	if !ok {
+func viewAll(db *bolt.DB) {
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Shows"))
+		c := b.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			show, err := ShowFromBytes(v)
+			if err != nil {
+				fmt.Println("Error loading show '%s'", k)
+				continue
+			}
+
+			name := show.Name
+			if len(name) > 15 {
+				name = name[:15] + "..."
+			}
+
+			fmt.Printf("%-20s %s\n", name, show.Pointer)
+		}
+
+		return nil
+	})
+}
+
+func view(db *bolt.DB, name string) {
+	var (
+		err  error
+		show *Show
+	)
+
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Shows"))
+		show, err = ShowFromBytes(b.Get([]byte(name)))
+		return err
+	})
+
+	if show == nil {
 		fmt.Printf("The specified show '%s' not found.\n", name)
 		return
 	}
@@ -134,21 +186,21 @@ func view(dbh *db.Database, name string) {
 	}
 }
 
-func set(dbh *db.Database, args []string) {
+func set(db *bolt.DB, args []string) {
 	if len(args) != 3 {
 		fmt.Println(`Usage:
-  set SHOW PROP VALUE
-  set SHOW:SEASON PROP VALUE
+set SHOW PROP VALUE
+set SHOW:SEASON PROP VALUE
 
 Show properties:
-  query       : string, search query, must contain '%s' for pointer
-  min-seeders : uint, minimum number of seeders allowed
-  prefer-hq   : boolean
-  pointer     : last downloaded episode
+query       : string, search query, must contain '%s' for pointer
+min-seeders : uint, minimum number of seeders allowed
+prefer-hq   : boolean
+pointer     : last downloaded episode
 
 Season properties:
-  epc   : uint, episode count
-  begin : date, begin date`)
+epc   : uint, episode count
+begin : date, begin date`)
 		return
 	}
 
@@ -157,13 +209,14 @@ Season properties:
 	value := args[2]
 
 	var (
-		ok bool
+		ok  bool
+		err error
 
 		name   string = split[0]
 		number uint
 
-		show   *db.Show
-		season *db.Season
+		show   *Show
+		season *Season
 	)
 
 	if len(split) == 2 {
@@ -175,18 +228,23 @@ Season properties:
 		number = uint(v)
 	}
 
-	show, ok = dbh.FindShow(name)
-	if !ok {
-		show = &db.Show{
-			Name: name,
-		}
-		dbh.Shows = append(dbh.Shows, show)
+	// Attempt to read the show from the database
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Shows"))
+		show, err = ShowFromBytes(b.Get([]byte(name)))
+		return err
+	})
+
+	if show == nil {
+		show = &Show{Name: name}
 	}
+
+	show.Name = name
 
 	if number != 0 {
 		season, ok = show.FindSeason(number)
 		if !ok {
-			season = &db.Season{
+			season = &Season{
 				Number: number,
 			}
 			show.Seasons = append(show.Seasons, season)
@@ -242,7 +300,7 @@ Season properties:
 			}
 
 		case "pointer":
-			pointer, err := db.PointerFromString(value)
+			pointer, err := PointerFromString(value)
 			if err != nil {
 				fmt.Println("Invalid value")
 				break
@@ -254,17 +312,49 @@ Season properties:
 		}
 	}
 
-	if err := dbh.Sync(); err != nil {
-		fmt.Println("Error syncing database: " + err.Error())
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Shows"))
+		return b.Put([]byte(name), show.Bytes())
+	})
+
+	if err != nil {
+		fmt.Printf("Error occurred while saving shows: %s", err.Error())
 	}
 }
 
+func rm(db *bolt.DB, name string) {
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Shows"))
+		b.Delete([]byte(name))
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("Database error: %s", err.Error())
+		return
+	}
+
+	fmt.Printf("Show '%s' has been deleted, if it ever existed.\n", name)
+}
+
 func main() {
-	dbh, err := db.NewDatabase(fmt.Sprintf("%s/.config/goautousts.zip", os.Getenv("HOME")))
+	dbFile := fmt.Sprintf("%s/.config/goautousts.db", os.Getenv("HOME"))
+	db, err := bolt.Open(dbFile, 0600, &bolt.Options{
+		Timeout: 1 * time.Second,
+	})
+
 	if err != nil {
 		fmt.Println("Could not open the database", err)
 		return
 	}
+	defer db.Close()
+
+	db.Update(func(tx *bolt.Tx) error {
+		if _, err := tx.CreateBucketIfNotExists([]byte("Shows")); err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		return nil
+	})
 
 	var (
 		verb     string
@@ -278,20 +368,18 @@ func main() {
 
 	switch verb {
 	case "sync":
-		sync(dbh)
+		sync(db)
 	case "view":
 		if len(verbArgs) == 1 {
-			view(dbh, verbArgs[0])
+			view(db, verbArgs[0])
 		} else {
-			viewAll(dbh)
+			viewAll(db)
 		}
 	case "set":
-		set(dbh, verbArgs)
+		set(db, verbArgs)
+	case "rm":
+		rm(db, verbArgs[0])
 	default:
-		fmt.Println("No verb specified: {sync, view, set}")
-	}
-
-	if err := dbh.Close(); err != nil {
-		fmt.Println("Error closing the database: " + err.Error())
+		fmt.Println("No verb specified: {sync, view, set, rm}")
 	}
 }
