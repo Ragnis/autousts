@@ -13,7 +13,7 @@ type Kickass struct {
 func (k *Kickass) Search(query string, options Options) ([]*Result, error) {
 	url := url.URL{
 		Scheme:   "https",
-		Host:     "kickass.to",
+		Host:     "kat.cr",
 		Path:     fmt.Sprintf("/usearch/%s/", query),
 		RawQuery: "field=seeders&sorder=desc",
 	}
