@@ -176,11 +176,13 @@ func view(db *bolt.DB, name string) {
 	fmt.Printf("Prefer HQ   : %t\n", show.PreferHQ)
 	fmt.Printf("Pointer     : %s\n", show.Pointer)
 
-	if len(show.Seasons) > 0 {
+	seasons := show.Seasons.Slice()
+
+	if len(seasons) > 0 {
 		fmt.Println("")
 		fmt.Println("Season  Episodes  Begin")
 
-		for _, season := range show.Seasons {
+		for _, season := range seasons {
 			fmt.Printf("%-7d %-9d %s\n", season.Number, season.EpisodeCount, season.Begin)
 		}
 	}
@@ -242,12 +244,12 @@ begin : date, begin date`)
 	show.Name = name
 
 	if number != 0 {
-		season, ok = show.FindSeason(number)
+		season, ok = show.Seasons.Get(number)
 		if !ok {
 			season = &Season{
 				Number: number,
 			}
-			show.Seasons = append(show.Seasons, season)
+			show.Seasons.Put(season)
 		}
 	}
 

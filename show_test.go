@@ -8,11 +8,10 @@ import (
 func TestNextPointer(t *testing.T) {
 	show := Show{
 		Pointer: Pointer{0, 0},
-		Seasons: []*Season{
-			&Season{4, 24, time.Now()},
-			&Season{3, 13, time.Now()},
-		},
 	}
+
+	show.Seasons.Put(&Season{4, 24, time.Now()})
+	show.Seasons.Put(&Season{3, 13, time.Now()})
 
 	next, ok := show.NextPointer()
 	if !ok {
