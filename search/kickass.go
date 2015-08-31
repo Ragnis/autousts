@@ -26,7 +26,7 @@ func (k *Kickass) Search(query string, options Options) ([]*Result, error) {
 	ret := []*Result{}
 
 	doc.Find("#mainSearchTable table.data tr[id]").Each(func(i int, s *goquery.Selection) {
-		magnet, ok := s.Find("a.imagnet").Attr("href")
+		magnet, ok := s.Find("a[title='Torrent magnet link']").Attr("href")
 		if !ok {
 			return
 		}
