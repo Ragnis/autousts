@@ -9,6 +9,7 @@ type Show struct {
 	Query      string  `json:"query"`
 	SeedersMin uint    `json:"seeders_min"`
 	PreferHQ   bool    `json:"prefer_hq"`
+	Paused     bool    `json:"paused"`
 	Pointer    Pointer `json:"pointer"`
 	Seasons    Seasons `json:"seasons"`
 }

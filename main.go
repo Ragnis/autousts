@@ -16,6 +16,7 @@ func syncShow(show *Show, out chan<- *search.Result, fin chan<- bool) {
 
 	for {
 		pointer, ok := show.NextPointer()
+
 		if !ok {
 			break
 		}
@@ -86,6 +87,10 @@ func sync(db *bolt.DB) {
 	})
 
 	for _, show := range shows {
+		if show.Paused {
+			continue
+		}
+
 		waiting += 1
 		go syncShow(show, rec, fin)
 	}
@@ -143,6 +148,7 @@ func viewAll(db *bolt.DB) {
 
 			name := show.Name
 			hasNext := ""
+			isPaused := ""
 
 			if len(name) > 15 {
 				name = name[:15] + "..."
@@ -152,7 +158,11 @@ func viewAll(db *bolt.DB) {
 				hasNext = "+"
 			}
 
-			fmt.Printf("%-20s %s %s\n", name, show.Pointer, hasNext)
+			if show.Paused {
+				isPaused = "paused"
+			}
+
+			fmt.Printf("%-20s %s %s %s\n", name, show.Pointer, hasNext, isPaused)
 		}
 
 		return nil
@@ -181,6 +191,7 @@ func view(db *bolt.DB, name string) {
 	fmt.Printf("Min seeders : %d\n", show.SeedersMin)
 	fmt.Printf("Prefer HQ   : %t\n", show.PreferHQ)
 	fmt.Printf("Pointer     : %s\n", show.Pointer)
+	fmt.Printf("Paused      : %t\n", show.Paused)
 
 	seasons := show.Seasons.Slice()
 
@@ -202,9 +213,10 @@ set SHOW:SEASON PROP VALUE
 
 Show properties:
 query       : string, search query, must contain '%s' for pointer
-min-seeders : uint, minimum number of seeders allowed
+seeders-min : uint, minimum number of seeders allowed
 prefer-hq   : boolean
 pointer     : last downloaded episode
+paused      : boolean
 
 Season properties:
 epc   : uint, episode count
@@ -314,6 +326,16 @@ begin : date, begin date`)
 				break
 			}
 			show.Pointer = pointer
+
+		case "paused":
+			switch value {
+			case "true":
+				show.Paused = true
+			case "false":
+				show.Paused = false
+			default:
+				fmt.Println("Invalid value. Allowed values are: true, false")
+			}
 
 		default:
 			fmt.Println("Invalid key")
