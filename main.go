@@ -12,7 +12,7 @@ import (
 )
 
 func syncShow(show *Show, out chan<- *search.Result, fin chan<- bool) {
-	var k search.Kickass
+	var k search.Thepiratebay
 
 	for {
 		pointer, ok := show.NextPointer()
