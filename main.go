@@ -1,8 +1,8 @@
 package main
 
 import (
-	"aragnis.com/autousts/search"
 	"fmt"
+	"github.com/Ragnis/autousts/search"
 	"github.com/boltdb/bolt"
 	"github.com/longnguyen11288/go-transmission/transmission"
 	"os"
