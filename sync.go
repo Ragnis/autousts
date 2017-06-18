@@ -53,6 +53,7 @@ func cmdSync(db *DB, argv []string) int {
 	for waiting > 0 {
 		select {
 		case result := <-rec:
+			fmt.Printf("Found torrent: '%s'\n", result.Name)
 			results = append(results, result)
 
 		case <-fin:
@@ -60,10 +61,8 @@ func cmdSync(db *DB, argv []string) int {
 		}
 	}
 
-	for _, result := range results {
-		fmt.Printf("Found torrent: '%s'\n", result.Name)
-
-		if !*dryRun {
+	if !*dryRun {
+		for _, result := range results {
 			if _, err := tc.AddTorrentByFilename(result.MagnetURL, ""); err != nil {
 				fmt.Println("Error adding torrent: " + err.Error())
 				fmt.Println("Stopping...")
