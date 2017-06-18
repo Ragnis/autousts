@@ -92,18 +92,18 @@ func cmdSync(db *DB, argv []string) int {
 }
 
 func syncShow(show *Show, out chan<- *search.Result, fin chan<- bool) {
-	var k search.Thepiratebay
+	aggr := &search.Aggregator{}
+	aggr.AddSearcher(&search.Thepiratebay{})
 
 	for {
 		pointer, ok := show.NextPointer()
-
 		if !ok {
 			break
 		}
 
 		query := fmt.Sprintf(show.Query, pointer)
 
-		results, err := k.Search(query, search.Options{})
+		results, err := aggr.Search(query)
 		if err != nil {
 			fmt.Println("Search error: " + err.Error())
 			break
