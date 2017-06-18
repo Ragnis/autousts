@@ -49,13 +49,16 @@ func (ag Aggregator) Search(query string) (Results, error) {
 			return nil, err
 		}
 		for _, r := range list {
+			var dup bool
 			for _, xt := range parseExactTopics(r.MagnetURL) {
 				if xts[xt] {
-					continue
+					dup = true
 				}
 				xts[xt] = true
 			}
-			ret = append(ret, r)
+			if !dup {
+				ret = append(ret, r)
+			}
 		}
 	}
 	return ret, nil
