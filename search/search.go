@@ -2,6 +2,7 @@ package search
 
 import (
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -13,9 +14,15 @@ type Result struct {
 	Size      uint64
 }
 
+// Results is a slice of search results
+type Results []*Result
+
+// ResultFilterFunc is used to filter a list of results
+type ResultFilterFunc func(*Result) bool
+
 // Searcher can search for torrents
 type Searcher interface {
-	Search(query string) ([]*Result, error)
+	Search(query string) (Results, error)
 }
 
 // Aggregator aggregates search results from multiple Searchers
@@ -31,9 +38,9 @@ func (ag *Aggregator) AddSearcher(s Searcher) {
 
 // Search performs a search using all searchers and aggregates the results
 // removing any duplicates.
-func (ag Aggregator) Search(query string) ([]*Result, error) {
+func (ag Aggregator) Search(query string) (Results, error) {
 	var (
-		ret []*Result
+		ret Results
 		xts = make(map[string]bool)
 	)
 	for _, s := range ag.searchers {
@@ -52,6 +59,23 @@ func (ag Aggregator) Search(query string) ([]*Result, error) {
 		}
 	}
 	return ret, nil
+}
+
+// Filter creates a new results list using the filter function
+func (rs *Results) Filter(fun ResultFilterFunc) (out Results) {
+	for _, r := range *rs {
+		if fun(r) {
+			out = append(out, r)
+		}
+	}
+	return
+}
+
+// Sort sorts the result list
+func (rs *Results) Sort() {
+	sort.Slice(*rs, func(i, j int) bool {
+		return (*rs)[i].Seeders < (*rs)[j].Seeders
+	})
 }
 
 func parseExactTopics(magnet string) (ret []string) {

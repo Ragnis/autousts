@@ -12,7 +12,7 @@ type Thepiratebay struct {
 }
 
 // Search performs a search
-func (tpb *Thepiratebay) Search(query string) (results []*Result, err error) {
+func (tpb *Thepiratebay) Search(query string) (results Results, err error) {
 	url := url.URL{
 		Scheme: "https",
 		Host:   "thepiratebay.org",

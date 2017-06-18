@@ -108,30 +108,32 @@ func syncShow(show *Show, out chan<- *search.Result, fin chan<- bool) {
 			fmt.Println("Search error: " + err.Error())
 			break
 		}
-
-		var chosen *search.Result
-
-		for _, result := range results {
-			if show.SeedersMin > 0 && result.Seeders < show.SeedersMin {
-				continue
+		results = results.Filter(func(r *search.Result) bool {
+			if show.SeedersMin > 0 && r.Seeders < show.SeedersMin {
+				return false
 			}
-
-			rptr, err := PointerFromString(result.Name)
-			if err != nil || rptr.String() != pointer.String() {
-				continue
+			if !containsPointer(r.Name, pointer) {
+				return false
 			}
+			return true
+		})
+		results.Sort()
 
-			chosen = result
+		if len(results) == 0 {
 			break
 		}
 
-		if chosen == nil {
-			break
-		}
-
-		out <- chosen
+		out <- results[0]
 		show.Pointer = pointer
 	}
 
 	fin <- true
+}
+
+func containsPointer(str string, ptr Pointer) bool {
+	nptr, err := PointerFromString(str)
+	if err != nil {
+		return false
+	}
+	return nptr.String() == ptr.String()
 }
