@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/boltdb/bolt"
 )
 
-func cmdView(db *bolt.DB, argv []string) int {
+func cmdView(db *DB, argv []string) int {
 	var rv int
 	switch len(argv) {
 	case 0:
@@ -20,8 +18,8 @@ func cmdView(db *bolt.DB, argv []string) int {
 	return rv
 }
 
-func cmdViewAll(db *bolt.DB) int {
-	shows, err := Shows(db)
+func cmdViewAll(db *DB) int {
+	shows, err := db.Shows()
 	if err != nil {
 		fmt.Printf("error loading shows: %v\n", err)
 		return 1
@@ -46,8 +44,8 @@ func cmdViewAll(db *bolt.DB) int {
 	return 0
 }
 
-func cmdViewShow(db *bolt.DB, name string) int {
-	show, err := ShowByName(db, name)
+func cmdViewShow(db *DB, name string) int {
+	show, err := db.Show(name)
 	if err != nil {
 		fmt.Printf("error querying show: %v\n", err)
 		return 1

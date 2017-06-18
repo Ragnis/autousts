@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/boltdb/bolt"
 )
 
 type configFlags struct {
@@ -54,7 +52,7 @@ func (cf configFlags) ParsedFlagNames() (flags []string) {
 	return
 }
 
-func cmdConfig(db *bolt.DB, argv []string) int {
+func cmdConfig(db *DB, argv []string) int {
 	cf := &configFlags{}
 	cf.Parse(argv)
 
@@ -68,15 +66,15 @@ func cmdConfig(db *bolt.DB, argv []string) int {
 	return cmdConfigShow(db, cf)
 }
 
-func cmdConfigShow(db *bolt.DB, cf *configFlags) int {
+func cmdConfigShow(db *DB, cf *configFlags) int {
 	if cf.Delete {
-		if err := DeleteShow(db, cf.Show); err != nil {
+		if err := db.DeleteShow(cf.Show); err != nil {
 			fmt.Printf("error deleting show: %v\n", err)
 			return 1
 		}
 		return 0
 	}
-	show, err := ShowByName(db, cf.Show)
+	show, err := db.Show(cf.Show)
 	if err != nil {
 		if err != ErrNoShow {
 			fmt.Printf("error querying show: %v\n", err)
@@ -109,15 +107,15 @@ func cmdConfigShow(db *bolt.DB, cf *configFlags) int {
 			show.Pointer = ptr
 		}
 	}
-	if err := SaveShow(db, show); err != nil {
+	if err := db.SaveShow(show); err != nil {
 		fmt.Printf("error saving show: %v\n", err)
 		return 1
 	}
 	return 0
 }
 
-func cmdConfigSeason(db *bolt.DB, cf *configFlags) int {
-	show, err := ShowByName(db, cf.Show)
+func cmdConfigSeason(db *DB, cf *configFlags) int {
+	show, err := db.Show(cf.Show)
 	if err != nil {
 		fmt.Printf("error querying show: %v\n", err)
 		return 1
@@ -151,7 +149,7 @@ func cmdConfigSeason(db *bolt.DB, cf *configFlags) int {
 			}
 		}
 	}
-	if err := SaveShow(db, show); err != nil {
+	if err := db.SaveShow(show); err != nil {
 		fmt.Printf("error saving show: %v\n", err)
 		return 1
 	}

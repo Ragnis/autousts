@@ -4,13 +4,11 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/boltdb/bolt"
-	"github.com/longnguyen11288/go-transmission/transmission"
-
 	"github.com/Ragnis/autousts/search"
+	"github.com/longnguyen11288/go-transmission/transmission"
 )
 
-func cmdSync(db *bolt.DB, argv []string) int {
+func cmdSync(db *DB, argv []string) int {
 	var (
 		fs     = flag.NewFlagSet("sync", flag.ExitOnError)
 		dryRun = fs.Bool("dry-run", false, "do not actually download or save anything")
@@ -28,6 +26,7 @@ func cmdSync(db *bolt.DB, argv []string) int {
 	}
 
 	var (
+		err     error
 		shows   []*Show
 		results []*search.Result
 	)
@@ -36,19 +35,11 @@ func cmdSync(db *bolt.DB, argv []string) int {
 	fin := make(chan bool)
 	rec := make(chan *search.Result)
 
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Shows"))
-		c := b.Cursor()
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			show, err := ShowFromBytes(v)
-			if err == nil {
-				shows = append(shows, show)
-			}
-		}
-
-		return nil
-	})
+	shows, err = db.Shows()
+	if err != nil {
+		fmt.Printf("could not query shows: %v\n", err)
+		return 1
+	}
 
 	for _, show := range shows {
 		if show.Paused {
@@ -84,19 +75,15 @@ func cmdSync(db *bolt.DB, argv []string) int {
 	fmt.Printf("Found %d torrent(s)\n", len(results))
 
 	if !*dryRun {
-		err := db.Batch(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Shows"))
-
-			for _, show := range shows {
-				if err := b.Put([]byte(show.Name), show.Bytes()); err != nil {
-					return err
-				}
+		var ec int
+		for _, show := range shows {
+			if err := db.SaveShow(show); err != nil {
+				fmt.Printf("error saving show '%s': %v\n", show.Name, err)
+				ec++
 			}
-
-			return nil
-		})
-		if err != nil {
-			fmt.Printf("Error occurred while saving shows: %s", err.Error())
+		}
+		if ec > 0 {
+			fmt.Printf("finished with %d errors\n", ec)
 			return 1
 		}
 	}
